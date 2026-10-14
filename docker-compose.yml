@@ -14,6 +14,33 @@ services:
     networks:
       - jbikas-network
 
+  postgres-ui:
+    image: sosedoff/pgweb:latest
+    container_name: jbikas-postgres-ui
+    ports:
+      - "8085:8081" # Exposes the interface on your host web browser at port 8085
+    environment:
+      - DATABASE_URL=postgres://postgres:password@postgres-db:5432/postgres?sslmode=disable
+    depends_on:
+      - postgres-db
+    networks:
+      - jbikas-network
+
+  opd-service:
+    build: ./opd-service
+    container_name: jbikas-opd-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/jbikas_opd
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - JWT_SECRET=9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
+    depends_on:
+      - postgres-db
+    networks:
+      - jbikas-network
+  
   auth-service:
     build: ./auth-service
     container_name: jbikas-auth-service

@@ -1,5 +1,5 @@
 Swagger: http://localhost:8081/swagger-ui.html
-
+Database: http://localhost:8085
 
 📂 Path: auth-service/src/main/java/com/hospital/auth/AuthApplication.java
 Purpose: Serves as the bootstrapping anchor for this microservice. It initializes the embedded Tomcat web server on port 8081 [3.8] and scans all local sub-packages for Spring components.
