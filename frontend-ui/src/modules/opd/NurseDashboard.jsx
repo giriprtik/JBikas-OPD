@@ -1,86 +1,89 @@
-import React, { useState, useEffect, useContext } from 'react';
-import axiosClient, { OPD_API } from '../../api/axiosClient.js';
-import { AuthContext } from '../../context/AuthContext';
+import { useMemo, useState } from 'react';
+import AppShell from '../../components/layout/AppShell.jsx';
+import { Alert, Button, Skeleton, Tabs } from '../../components/ui/index.jsx';
+import { visitApi } from '../../api/opdApi.js';
+import useAsync from '../../hooks/useAsync.js';
+import useInterval from '../../hooks/useInterval.js';
+import RegisterVisit from './nurse/RegisterVisit.jsx';
+import TriagePanel from './nurse/TriagePanel.jsx';
+import TodayVisits from './nurse/TodayVisits.jsx';
+
+const REFRESH_MS = 30_000;
 
 export default function NurseDashboard() {
-    const { user, logout } = useContext(AuthContext);
-    const [queue, setQueue] = useState([]);
-    const [formData, setFormData] = useState({ name: '', age: '', gender: 'Male', contactNumber: '', chiefComplaint: '' });
-    const [msg, setMsg] = useState('');
+  const { data: visits, loading, error, reload } = useAsync(() => visitApi.today(), [], { initial: [] });
+  const [tab, setTab] = useState('register');
+  const [triageId, setTriageId] = useState(null);
+  const [notice, setNotice] = useState(null);
 
-    const fetchQueue = async () => {
-        try {
-            const res = await axiosClient.get(`${OPD_API}/patients/all`);
-            setQueue(res.data);
-        } catch (err) { console.error(err); }
-    };
+  useInterval(() => reload({ silent: true }), REFRESH_MS);
 
-    useEffect(() => { fetchQueue(); }, []);
+  const stats = useMemo(() => {
+    const count = (fn) => visits.filter(fn).length;
+    return [
+      { label: 'Visits today', value: visits.length },
+      { label: 'Awaiting triage', value: count((v) => v.status === 'REGISTERED') },
+      { label: 'Waiting for doctor', value: count((v) => ['TRIAGED', 'LAB_RESULTS_READY'].includes(v.status)) },
+      { label: 'Awaiting lab', value: count((v) => v.status === 'AWAITING_LAB') },
+    ];
+  }, [visits]);
 
-    const handleRegister = async (e) => {
-        e.preventDefault();
-        try {
-            await axiosClient.post(`${OPD_API}/patients/register`, formData);
-            setMsg('Patient registered to queue successfully!');
-            setFormData({ name: '', age: '', gender: 'Male', contactNumber: '', chiefComplaint: '' });
-            fetchQueue();
-        } catch (err) { setMsg('Registration failure.'); }
-    };
+  const awaitingTriage = stats[1].value;
 
-    return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#f4f6f9' }}>
-            {/* Sidebar Navigator */}
-            <div style={{ width: '260px', background: '#1e293b', color: '#fff', padding: '24px' }}>
-                <h2 style={{ fontSize: '20px', margin: '0 0 40px 0', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>🏥 JBikas OPD</h2>
-                <p style={{ fontSize: '14px', color: '#94a3b8' }}>User: <b>{user?.username}</b></p>
-                <p style={{ fontSize: '12px', background: '#334155', display: 'inline-block', padding: '4px 8px', borderRadius: '4px' }}>NURSE DESK</p>
-                <button onClick={logout} style={{ width: '100%', marginTop: '60px', padding: '10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Sign Out</button>
-            </div>
-            {/* Main Content Area */}
-            <div style={{ flex: 1, padding: '40px' }}>
-                <h1 style={{ fontSize: '24px', color: '#0f172a', margin: '0 0 30px 0' }}>OPD Intake Management Portal</h1>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '30px' }}>
-                    {/* Form Block */}
-                    <div style={{ background: '#fff', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                        <h3 style={{ margin: '0 0 20px 0' }}>Register New Patient</h3>
-                        {msg && <p style={{ color: msg.includes('success') ? 'green' : 'red' }}>{msg}</p>}
-                        <form onSubmit={handleRegister}>
-                            <label style={{ display: 'block', fontSize: '13px', margin: '8px 0 4px' }}>Full Name</label>
-                            <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ width: '90%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1' }} required />
-                            <label style={{ display: 'block', fontSize: '13px', margin: '8px 0 4px' }}>Age</label>
-                            <input type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} style={{ width: '90%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1' }} required />
-                            <label style={{ display: 'block', fontSize: '13px', margin: '8px 0 4px' }}>Gender</label>
-                            <select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} style={{ width: '96%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1' }}>
-                                <option>Male</option><option>Female</option><option>Other</option>
-                            </select>
-                            <label style={{ display: 'block', fontSize: '13px', margin: '8px 0 4px' }}>Contact Number</label>
-                            <input type="text" value={formData.contactNumber} onChange={e => setFormData({...formData, contactNumber: e.target.value})} style={{ width: '90%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1' }} required />
-                            <label style={{ display: 'block', fontSize: '13px', margin: '8px 0 4px' }}>Chief Complaint</label>
-                            <textarea value={formData.chiefComplaint} onChange={e => setFormData({...formData, chiefComplaint: e.target.value})} style={{ width: '90%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1', height: '60px' }} required />
-                            <button type="submit" style={{ width: '97%', marginTop: '16px', padding: '10px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Add to Waitlist Queue</button>
-                        </form>
-                    </div>
-                    {/* Live Records Log Table View */}
-                    <div style={{ background: '#fff', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                        <h3 style={{ margin: '0 0 20px 0' }}>Patient Records Master Log</h3>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontSize: '14px' }}>
-                                    <th style={{ padding: '12px' }}>ID</th><th style={{ padding: '12px' }}>Name</th><th style={{ padding: '12px' }}>Age/Sex</th><th style={{ padding: '12px' }}>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {queue.map(p => (
-                                    <tr key={p.id} style={{ borderBottom: '1px solid #e2e8f0', fontSize: '14px' }}>
-                                        <td style={{ padding: '12px' }}>{p.id}</td><td style={{ padding: '12px' }}><b>{p.name}</b></td><td style={{ padding: '12px' }}>{p.age} Yrs / {p.gender}</td>
-                                        <td style={{ padding: '12px' }}><span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', background: p.status === 'QUEUED' ? '#dbeafe' : '#fef3c7', color: p.status === 'QUEUED' ? '#1e40af' : '#92400e' }}>{p.status}</span></td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+  const handleOpened = (visit) => {
+    setNotice({
+      text: `Token ${visit.tokenNumber} issued to ${visit.patient.fullName} (${visit.patient.mrn}).`,
+      visitId: visit.id,
+    });
+    reload({ silent: true });
+  };
+
+  return (
+    <AppShell
+      title="Nurse desk"
+      subtitle="Register arrivals, record vitals and keep the OPD moving."
+      actions={<Button variant="secondary" icon="refresh" onClick={() => reload()} loading={loading}>Refresh</Button>}
+    >
+      <div className="stats">
+        {stats.map((s) => (
+          <div key={s.label} className="card stat">
+            <div className="stat__label">{s.label}</div>
+            <div className="stat__value">{loading && !visits.length ? <Skeleton width="40px" /> : s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {notice && (
+        <Alert tone="success" onClose={() => setNotice(null)}>
+          {notice.text}{' '}
+          <button type="button" className="link-button" onClick={() => { setTriageId(notice.visitId); setTab('triage'); setNotice(null); }}>
+            Record vitals now
+          </button>
+        </Alert>
+      )}
+      {error && <Alert tone="error">{error}</Alert>}
+
+      <Tabs
+        label="Nurse desk sections"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: 'register', label: 'Register visit' },
+          { id: 'triage', label: 'Triage', count: awaitingTriage },
+          { id: 'today', label: "Today's visits", count: visits.length },
+        ]}
+      />
+
+      {tab === 'register' && <RegisterVisit onVisitOpened={handleOpened} />}
+      {tab === 'triage' && (
+        <TriagePanel
+          visits={visits}
+          selectedId={triageId}
+          onSelect={setTriageId}
+          onSaved={() => reload({ silent: true })}
+        />
+      )}
+      {tab === 'today' && <TodayVisits visits={visits} onChanged={() => reload({ silent: true })} />}
+    </AppShell>
+  );
 }

@@ -1,142 +1,135 @@
-import React, { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext.jsx';
+import { Alert, Button, Field, Icon } from '../../components/ui/index.jsx';
+
+// Landing route for each role after sign-in. First match wins.
+export const ROLE_HOME = [
+  ['ROLE_DOCTOR', '/doctor'],
+  ['ROLE_NURSE', '/nurse'],
+  ['ROLE_LAB_TECH', '/lab'],
+];
+
+const homeFor = (roles = []) => ROLE_HOME.find(([role]) => roles.includes(role))?.[1];
 
 export default function Login() {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const { login } = useContext(AuthContext);
-    const navigate = useNavigate();
+  const { user, login } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError(''); // Reset error boundary state
-        try {
-            const roles = await login(username, password);
-            if (roles.includes('ROLE_DOCTOR')) {
-                navigate('/doctor');
-            } else if (roles.includes('ROLE_NURSE')) {
-                navigate('/nurse');
-            } else {
-                setError('Account possesses unmapped system role access permissions.');
-            }
-        } catch (err) {
-            setError('Invalid credentials or authentication microservice connection timeout.');
-        }
-    };
+  // Already signed in: skip the form.
+  useEffect(() => {
+    const home = homeFor(user?.roles);
+    if (home) navigate(home, { replace: true });
+  }, [user, navigate]);
 
-    return (
-        <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            minHeight: '100vh', 
-            backgroundColor: '#f1f5f9' 
-        }}>
-            <div style={{ 
-                width: '100%', 
-                maxWidth: '400px', 
-                backgroundColor: '#ffffff', 
-                padding: '40px', 
-                borderRadius: '8px', 
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)' 
-            }}>
-                <h2 style={{ 
-                    textAlign: 'center', 
-                    color: '#0f172a', 
-                    margin: '0 0 8px 0', 
-                    fontSize: '24px' 
-                }}>
-                    JBikas Hospital System
-                </h2>
-                <p style={{ 
-                    textAlign: 'center', 
-                    color: '#64748b', 
-                    margin: '0 0 32px 0', 
-                    fontSize: '14px' 
-                }}>
-                    Sign in to access your assigned clinical portal
-                </p>
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSubmitting(true);
+    try {
+      const roles = await login(username.trim(), password);
+      const home = homeFor(roles);
+      if (home) navigate(home, { replace: true });
+      else if (roles.includes('ROLE_ADMIN')) setError('Administrator accounts manage users through the auth-service API; there is no admin screen yet.');
+      else setError('Your account has no portal assigned. Contact the system administrator.');
+    } catch (err) {
+      setError(
+        err?.response
+          ? 'Incorrect username or password.'
+          : 'Cannot reach the authentication service. Try again in a moment.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-                {error && (
-                    <div style={{ 
-                        backgroundColor: '#fef2f2', 
-                        color: '#991b1b', 
-                        padding: '12px', 
-                        borderRadius: '6px', 
-                        fontSize: '13px', 
-                        marginBottom: '20px', 
-                        border: '1px solid #fee2e2' 
-                    }}>
-                        {error}
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit}>
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-                            Username
-                        </label>
-                        <input 
-                            type="text" 
-                            placeholder="Enter your username" 
-                            value={username} 
-                            onChange={e => setUsername(e.target.value)} 
-                            style={{ 
-                                width: '100%', 
-                                boxSizing: 'border-box',
-                                padding: '10px 12px', 
-                                borderRadius: '6px', 
-                                border: '1px solid #cbd5e1', 
-                                fontSize: '14px' 
-                            }} 
-                            required 
-                        />
-                    </div>
-
-                    <div style={{ marginBottom: '24px' }}>
-                        <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-                            Password
-                        </label>
-                        <input 
-                            type="password" 
-                            placeholder="Enter your password" 
-                            value={password} 
-                            onChange={e => setPassword(e.target.value)} 
-                            style={{ 
-                                width: '100%', 
-                                boxSizing: 'border-box',
-                                padding: '10px 12px', 
-                                borderRadius: '6px', 
-                                border: '1px solid #cbd5e1', 
-                                fontSize: '14px' 
-                             }} 
-                            required 
-                        />
-                    </div>
-
-                    <button 
-                        type="submit" 
-                        style={{ 
-                            width: '100%', 
-                            padding: '12px', 
-                            backgroundColor: '#2563eb', 
-                            color: '#ffffff', 
-                            border: 'none', 
-                            borderRadius: '6px', 
-                            fontSize: '14px', 
-                            fontWeight: '600', 
-                            cursor: 'pointer',
-                            transition: 'background-color 0.2s'
-                        }}
-                        onMouseOver={(e) => e.target.style.backgroundColor = '#1d4ed8'}
-                        onMouseOut={(e) => e.target.style.backgroundColor = '#2563eb'}
-                    >
-                        Sign In
-                    </button>
-                </form>
-            </div>
+  return (
+    <div className="auth">
+      <aside className="auth__aside">
+        <div className="brand">
+          <span className="brand__mark"><Icon name="stethoscope" size={18} /></span>
+          <div>
+            <div className="brand__name">JBikas Hospital</div>
+            <div className="brand__sub">OPD &amp; Lab Portal</div>
+          </div>
         </div>
-    );
+        <div>
+          <p className="auth__headline">Outpatient care, from registration to lab results.</p>
+          <ul className="auth__points">
+            <li><Icon name="clipboard" /> Register patients and manage the waiting queue</li>
+            <li><Icon name="stethoscope" /> Review complaints and consult in order</li>
+            <li><Icon name="flask" /> Lab results flagged, released and reported as PDF</li>
+          </ul>
+        </div>
+        <p className="field__hint">Authorised hospital staff only.</p>
+      </aside>
+
+      <main className="auth__main">
+        <div className="auth__panel">
+          <div className="brand auth__mobile-brand">
+            <span className="brand__mark"><Icon name="stethoscope" size={18} /></span>
+            <div>
+              <div className="brand__name">JBikas Hospital</div>
+              <div className="brand__sub">OPD &amp; Lab Portal</div>
+            </div>
+          </div>
+          <div>
+            <h1 className="auth__title">Sign in</h1>
+            <p className="page-subtitle">Use your hospital staff credentials.</p>
+          </div>
+
+          {error && <Alert tone="error">{error}</Alert>}
+
+          <form className="form-grid" onSubmit={handleSubmit}>
+            <Field label="Username">
+              {(id) => (
+                <input
+                  id={id}
+                  className="input"
+                  autoComplete="username"
+                  autoFocus
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                />
+              )}
+            </Field>
+
+            <Field label="Password">
+              {(id) => (
+                <div className="password-wrap">
+                  <input
+                    id={id}
+                    className="input"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-pressed={showPassword}
+                  >
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              )}
+            </Field>
+
+            <Button type="submit" block loading={submitting} icon="lock">
+              {submitting ? 'Signing in…' : 'Sign in'}
+            </Button>
+          </form>
+        </div>
+      </main>
+    </div>
+  );
 }

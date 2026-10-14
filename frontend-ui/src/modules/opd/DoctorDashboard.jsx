@@ -1,80 +1,105 @@
-import React, { useState, useEffect, useContext } from 'react';
-import axiosClient, { OPD_API } from '../../api/axiosClient.js';
-import { AuthContext } from '../../context/AuthContext';
+import { useContext, useState } from 'react';
+import { AuthContext } from '../../context/AuthContext.jsx';
+import AppShell from '../../components/layout/AppShell.jsx';
+import { Alert, Button, Card, EmptyState, Skeleton } from '../../components/ui/index.jsx';
+import { StatusBadge } from '../../components/clinical/index.jsx';
+import { PRIORITY, VISIT_STATUS, ageSex, elapsedSince } from '../../domain/clinical.js';
+import { visitApi } from '../../api/opdApi.js';
+import { labApi } from '../../api/labApi.js';
+import useAsync from '../../hooks/useAsync.js';
+import useInterval from '../../hooks/useInterval.js';
+import ConsultationWorkspace from './doctor/ConsultationWorkspace.jsx';
+
+const REFRESH_MS = 30_000;
 
 export default function DoctorDashboard() {
-    const { user, logout } = useContext(AuthContext);
-    const [patients, setPatients] = useState([]);
-    const [selectedId, setSelectedId] = useState('');
-    const [testType, setTestType] = useState('Chest X-Ray');
-    const [statusMsg, setStatusMsg] = useState('');
+  const { user } = useContext(AuthContext);
+  const queue = useAsync(() => visitApi.doctorQueue(), [], { initial: [] });
+  const catalog = useAsync(() => labApi.catalog(), [], { initial: [] });
+  const [selectedId, setSelectedId] = useState(null);
 
-    const loadPatients = async () => {
-        try {
-            const res = await axiosClient.get(`${OPD_API}/patients/queue`);
-            setPatients(res.data);
-        } catch (err) { console.error(err); }
-    };
+  // Nurses keep adding patients and the lab keeps releasing results.
+  useInterval(() => queue.reload({ silent: true }), REFRESH_MS);
 
-    useEffect(() => { loadPatients(); }, []);
+  const mine = queue.data.filter((v) => v.assignedDoctor === user.username && v.status === 'IN_CONSULTATION');
+  const waiting = queue.data.filter((v) => !mine.includes(v));
 
-    const triggerLabOrder = async (e) => {
-        e.preventDefault();
-        if (!selectedId) return;
-        try {
-            await axiosClient.put(`${OPD_API}/patients/${selectedId}/order-lab?testType=${encodeURIComponent(testType)}`);
-            setStatusMsg(`Lab referral submitted successfully for Patient ID ${selectedId}!`);
-            setSelectedId('');
-            loadPatients();
-        } catch (err) { setStatusMsg('Failed to process cross-service lab request.'); }
-    };
+  return (
+    <AppShell
+      title="Consultation"
+      subtitle={queue.loading && !queue.data.length ? 'Loading queue…' : `${waiting.length} waiting · emergencies and urgent cases first`}
+      actions={<Button variant="secondary" icon="refresh" onClick={() => queue.reload()} loading={queue.loading}>Refresh</Button>}
+    >
+      {queue.error && <Alert tone="error">{queue.error}</Alert>}
+      {catalog.error && <Alert tone="error">Lab catalog unavailable: {catalog.error}</Alert>}
 
-    return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#f4f6f9' }}>
-            {/* Sidebar */}
-            <div style={{ width: '260px', background: '#0f172a', color: '#fff', padding: '24px' }}>
-                <h2 style={{ fontSize: '20px', margin: '0 0 40px 0', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>🩺 JBikas OPD</h2>
-                <p style={{ fontSize: '14px', color: '#94a3b8' }}>Dr. <b>{user?.username}</b></p>
-                <p style={{ fontSize: '12px', background: '#1e3a8a', display: 'inline-block', padding: '4px 8px', borderRadius: '4px' }}>CLINICAL MD</p>
-                <button onClick={logout} style={{ width: '100%', marginTop: '60px', padding: '10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Sign Out</button>
-            </div>
-            {/* Content Area */}
-            <div style={{ flex: 1, padding: '40px' }}>
-                <h1 style={{ fontSize: '24px', color: '#0f172a', margin: '0 0 30px 0' }}>Consultation & Examination Desk</h1>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
-                    {/* Live Waiting Queue Cards List */}
-                    <div style={{ background: '#fff', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                        <h3 style={{ margin: '0 0 20px 0' }}>Active Waiting Queue ({patients.length} Patients Remaining)</h3>
-                        {patients.length === 0 ? <p style={{ color: '#64748b' }}>No patients currently waiting in queue list.</p> : (
-                            <div style={{ display: 'grid', gap: '16px' }}>
-                                {patients.map(p => (
-                                    <div key={p.id} onClick={() => setSelectedId(p.id)} style={{ padding: '16px', borderRadius: '6px', border: selectedId === p.id ? '2px solid #2563eb' : '1px solid #e2e8f0', background: selectedId === p.id ? '#eff6ff' : '#fff', cursor: 'pointer', transition: 'all 0.2s' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'between', alignItems: 'center' }}>
-                                            <h4 style={{ margin: '0' }}>ID: {p.id} | <b>{p.name}</b> ({p.age} Yrs / {p.gender})</h4>
-                                        </div>
-                                        <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#475569' }}><b>Chief Complaint:</b> {p.chiefComplaint}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    {/* Action Block Panel */}
-                    <div style={{ background: '#fff', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                        <h3 style={{ margin: '0 0 20px 0' }}>Clinical Diagnosis Tools</h3>
-                        {statusMsg && <p style={{ color: 'blue', fontSize: '14px' }}>{statusMsg}</p>}
-                        {selectedId ? (
-                            <form onSubmit={triggerLabOrder}>
-                                <p style={{ fontSize: '14px' }}>Modifying Active File for Patient ID: <b>{selectedId}</b></p>
-                                <label style={{ display: 'block', fontSize: '13px', margin: '12px 0 4px' }}>Order Laboratory Investigation</label>
-                                <select value={testType} onChange={e => setTestType(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1' }}>
-                                    <option>Chest X-Ray</option><option>Complete Blood Count (CBC)</option><option>Thyroid Panel</option><option>Urine Analysis</option>
-                                </select>
-                                <button type="submit" style={{ width: '100%', marginTop: '20px', padding: '10px', background: '#059669', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Transmit Lab Order</button>
-                            </form>
-                        ) : <p style={{ color: '#64748b', fontSize: '14px' }}>Select a patient from the queue card list to activate diagnostics tools.</p>}
-                    </div>
-                </div>
-            </div>
+      <div className="split split--queue">
+        <div className="sticky form-grid">
+          {mine.length > 0 && (
+            <Card flush title="With you now">
+              <QueueList visits={mine} selectedId={selectedId} onSelect={setSelectedId} user={user} />
+            </Card>
+          )}
+          <Card flush title="Queue" subtitle="Select a patient to open their file.">
+            {queue.loading && !queue.data.length ? (
+              <div className="card__body form-grid">{[1, 2, 3].map((i) => <Skeleton key={i} />)}</div>
+            ) : waiting.length === 0 ? (
+              <EmptyState icon="users" title="Queue is clear">Triaged patients appear here automatically.</EmptyState>
+            ) : (
+              <QueueList visits={waiting} selectedId={selectedId} onSelect={setSelectedId} user={user} numbered />
+            )}
+          </Card>
         </div>
-    );
+
+        {selectedId ? (
+          <ConsultationWorkspace
+            key={selectedId}
+            visitId={selectedId}
+            catalog={catalog.data}
+            onChanged={() => queue.reload({ silent: true })}
+          />
+        ) : (
+          <Card title="No patient open">
+            <EmptyState icon="stethoscope" title="Pick a patient from the queue">
+              You will see their vitals, history and lab results, and can write notes and order tests.
+            </EmptyState>
+          </Card>
+        )}
+      </div>
+    </AppShell>
+  );
+}
+
+function QueueList({ visits, selectedId, onSelect, numbered, user }) {
+  return (
+    <div className="queue" role="list">
+      {visits.map((v, i) => (
+        <button
+          key={v.id}
+          type="button"
+          role="listitem"
+          className={`queue__item ${v.priority === 'EMERGENCY' ? 'queue__item--emergency' : ''}`}
+          aria-pressed={v.id === selectedId}
+          onClick={() => onSelect(v.id)}
+        >
+          <span className="token" title={`Token ${v.tokenNumber}`}>{numbered ? i + 1 : v.tokenNumber}</span>
+          <span>
+            <span className="queue__name">{v.patient.fullName}</span>{' '}
+            <span className="queue__meta">· {ageSex(v.patient)}</span>
+            <span className="queue__complaint">{v.chiefComplaint}</span>
+            <span className="queue__badges">
+              {v.priority !== 'NORMAL' && <StatusBadge map={PRIORITY} value={v.priority} />}
+              {v.status !== 'TRIAGED' && <StatusBadge map={VISIT_STATUS} value={v.status} />}
+              {v.latestVitals?.hasCritical && <span className="badge badge--danger">Critical vitals</span>}
+              {v.patient.allergies && <span className="badge badge--warning">Allergies</span>}
+              {v.assignedDoctor && v.assignedDoctor !== user.username && (
+                <span className="badge badge--neutral">{v.assignedDoctorName}</span>
+              )}
+            </span>
+          </span>
+          <span className="queue__time">{elapsedSince(v.registeredAt)}</span>
+        </button>
+      ))}
+    </div>
+  );
 }
