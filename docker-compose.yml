@@ -7,9 +7,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: jbikas_opd
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
+      POSTGRES_DB: jbikas_opd
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -23,10 +23,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/jbikas_opd
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: password
-      JWT_SECRET: your_super_secret_and_long_jwt_signing_key_for_security
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/jbikas_opd
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - JWT_SECRET=9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
+      - JWT_EXPIRATION=86400000
     depends_on:
       - postgres-db
     networks:
@@ -39,8 +40,6 @@ services:
     container_name: jbikas-frontend
     ports:
       - "5173:5173"
-    depends_on:
-      - backend-api
     networks:
       - jbikas-network
 

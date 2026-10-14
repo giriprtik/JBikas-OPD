@@ -1,10 +1,8 @@
 spring:
-  application:
-    name: opd-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/jbikas_opd}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    url: jdbc:postgresql://postgres-db:5432/jbikas_opd
+    username: postgres
+    password: password
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -15,5 +13,5 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 jwt:
-  secret: ${JWT_SECRET:default_local_development_secret_key_must_be_changed_in_production_32_bytes_long}
-  expiration: 86400000 # 1 day in milliseconds
+  secret: 9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
+  expiration: 86400000
