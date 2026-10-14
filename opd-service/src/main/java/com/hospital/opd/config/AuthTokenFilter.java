@@ -30,10 +30,16 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 String username = jwtUtils.getUsernameFromJwtToken(jwt);
                 String rolesString = jwtUtils.getRolesFromJwtToken(jwt);
 
+                // 🧠 Replace the old authorities streaming block inside your doFilterInternal method with this safe version:
                 List<SimpleGrantedAuthority> authorities = Arrays.stream(rolesString.split(","))
-                        .filter(role -> !role.isEmpty())
-                        .map(SimpleGrantedAuthority::new)
-                        .collect(Collectors.toList());
+                .filter(role -> !role.isEmpty())
+                .map(role -> {
+                    // If the role claim doesn't start with ROLE_, attach it automatically
+                    String formattedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                    return new SimpleGrantedAuthority(formattedRole);
+                })
+                .collect(Collectors.toList());
+
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         username, null, authorities);
