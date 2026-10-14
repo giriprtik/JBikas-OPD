@@ -1,51 +1,41 @@
 version: '3.8'
 
 services:
-  postgres-db:
-    image: postgres:15-alpine
-    container_name: jbikas-postgres
+  auth-service:
+    build: ./auth-service
     ports:
-      - "5432:5432"
+      - "8081:8081"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: jbikas_opd
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - jbikas-network
-
-  backend-api:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: jbikas-backend
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/jbikas_opd
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
-      - JWT_SECRET=9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
-      - JWT_EXPIRATION=86400000
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/jbikas_auth
     depends_on:
-      - postgres-db
-    networks:
-      - jbikas-network
+      - mysql-db
+
+  opd-service:
+    build: ./opd-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/jbikas_opd
+    depends_on:
+      - mysql-db
+
+  lab-service:
+    build: ./lab-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/jbikas_lab
+    depends_on:
+      - mysql-db
 
   frontend-ui:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: jbikas-frontend
+    build: ./frontend-ui
     ports:
       - "5173:5173"
-    networks:
-      - jbikas-network
 
-volumes:
-  pgdata:
-
-networks:
-  jbikas-network:
-    driver: bridge
+  mysql-db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - "3306:3306"
