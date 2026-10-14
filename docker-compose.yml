@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: jbikas-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: jbikas_opd
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - jbikas-network
+
+  backend-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jbikas-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/jbikas_opd
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+      JWT_SECRET: your_super_secret_and_long_jwt_signing_key_for_security
+    depends_on:
+      - postgres-db
+    networks:
+      - jbikas-network
+
+  frontend-ui:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: jbikas-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend-api
+    networks:
+      - jbikas-network
+
+volumes:
+  pgdata:
+
+networks:
+  jbikas-network:
+    driver: bridge

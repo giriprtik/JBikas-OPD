@@ -1,0 +1,24 @@
+# Master Java/Maven outputs
+**/target/
+**.class
+
+# Frontend Dependencies & Build outputs
+**/node_modules/
+**/dist/
+.eslintcache
+
+# IDE specific settings
+.idea/
+.vscode/
+*.iml
+*.suo
+*.ntvs*
+
+# OS operating files
+.DS_Store
+Thumbs.db
+
+# Environmental Secrets
+.env
+.env.local
+backend/src/main/resources/application-local.yml
