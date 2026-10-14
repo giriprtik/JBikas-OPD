@@ -26,6 +26,21 @@ services:
     networks:
       - jbikas-network
 
+  lab-service:
+    build: ./lab-service
+    container_name: jbikas-lab-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/jbikas_lab
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - JWT_SECRET=9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
+    depends_on:
+      - postgres-db
+    networks:
+      - jbikas-network
+
   opd-service:
     build: ./opd-service
     container_name: jbikas-opd-service
