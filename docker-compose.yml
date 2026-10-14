@@ -1,4 +1,5 @@
 services:
+  # 🗄️ Relational Database Module
   postgres-db:
     image: postgres:15-alpine
     container_name: jbikas-postgres
@@ -7,25 +8,60 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: postgres  # Default fallback root database
+      POSTGRES_DB: postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d # Mounts your database provisioning scripts
+      - ./init-scripts:/docker-entrypoint-initdb.d
     networks:
       - jbikas-network
 
+  # 📊 Relational Database Visual Viewer Panel
   postgres-ui:
     image: sosedoff/pgweb:latest
     container_name: jbikas-postgres-ui
     ports:
-      - "8085:8081" # Exposes the interface on your host web browser at port 8085
+      - "8085:8081"
     environment:
-      - DATABASE_URL=postgres://postgres:password@postgres-db:5432/postgres?sslmode=disable
+      - PGWEB_DATABASE_URL=postgres://postgres:password@postgres-db:5432/jbikas_auth?sslmode=disable
     depends_on:
       - postgres-db
     networks:
       - jbikas-network
 
+  # 🔑 Authentication & Identity Microservice
+  auth-service:
+    build: ./auth-service
+    container_name: jbikas-auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/jbikas_auth
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - JWT_SECRET=9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
+      - JWT_EXPIRATION=86400000
+    depends_on:
+      - postgres-db
+    networks:
+      - jbikas-network
+
+  # 🩺 Out-Patient Department Microservice
+  opd-service:
+    build: ./opd-service
+    container_name: jbikas-opd-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/jbikas_opd
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - JWT_SECRET=9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
+    depends_on:
+      - postgres-db
+    networks:
+      - jbikas-network
+
+  # 🧪 Laboratory Diagnostics Microservice
   lab-service:
     build: ./lab-service
     container_name: jbikas-lab-service
@@ -41,34 +77,12 @@ services:
     networks:
       - jbikas-network
 
-  opd-service:
-    build: ./opd-service
-    container_name: jbikas-opd-service
+  # 💻 User Web Dashboard Application Layer
+  frontend-ui:
+    build: ./frontend-ui
+    container_name: jbikas-frontend
     ports:
-      - "8082:8082"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/jbikas_opd
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
-      - JWT_SECRET=9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
-    depends_on:
-      - postgres-db
-    networks:
-      - jbikas-network
-  
-  auth-service:
-    build: ./auth-service
-    container_name: jbikas-auth-service
-    ports:
-      - "8081:8081"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/jbikas_auth
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
-      - JWT_SECRET=9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
-      - JWT_EXPIRATION=86400000
-    depends_on:
-      - postgres-db
+      - "5173:80"
     networks:
       - jbikas-network
 
