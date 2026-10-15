@@ -131,12 +131,27 @@ function PatientSearch({ query, setQuery, selectedId, onSelect, onNew }) {
 function OpenVisitForm({ patient, onCancel, onOpened }) {
   const [complaint, setComplaint] = useState('');
   const [priority, setPriority] = useState('NORMAL');
+  const [existingVisit, setExistingVisit] = useState(null);
   const open = useAction();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setExistingVisit(null);
+    
     const visit = await open.run(
-      () => visitApi.open({ patientId: patient.id, chiefComplaint: complaint.trim(), priority }),
+      async () => {
+        try {
+          return await visitApi.open({ patientId: patient.id, chiefComplaint: complaint.trim(), priority });
+        } catch (err) {
+          // Detect microservice conflict response patterns
+          if (err.response && (err.response.status === 409 || err.response.status === 422)) {
+            if (err.response.data?.existingVisit) {
+              setExistingVisit(err.response.data.existingVisit);
+            }
+          }
+          throw err;
+        }
+      },
       'Could not open the visit.',
     );
     if (visit) onOpened(visit);
@@ -149,7 +164,32 @@ function OpenVisitForm({ patient, onCancel, onOpened }) {
           <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Change</Button>
         </PatientBanner>
 
-        {open.error && <Alert tone="error" onClose={() => open.setError('')}>{open.error}</Alert>}
+        {open.error && (
+          <div className="form-grid" style={{ gridColumn: '1 / -1' }}>
+            <Alert tone="error" onClose={() => open.setError('')}>
+              <div className="flex flex-col gap-1">
+                <span>{open.error}</span>
+                {existingVisit ? (
+                  <div className="mt-2 p-2 bg-white rounded border border-red-200 flex items-center justify-between" style={{ color: '#333' }}>
+                    <span className="text-xs">Patient already possesses active Token <strong>#{existingVisit.tokenNumber}</strong>.</span>
+                    <Button 
+                      type="button" 
+                      size="sm" 
+                      onClick={() => onOpened(existingVisit)}
+                      style={{ marginLeft: '10px', padding: '4px 8px', fontSize: '11px' }}
+                    >
+                      Recover Active Token Workspace
+                    </Button>
+                  </div>
+                ) : (
+                  <span className="text-xs block mt-1 opacity-80">
+                    If this patient is new, check database daily_token_counters sync settings.
+                  </span>
+                )}
+              </div>
+            </Alert>
+          </div>
+        )}
 
         <Field label="Chief complaint" hint="In the patient's words, with duration.">
           {(id) => (

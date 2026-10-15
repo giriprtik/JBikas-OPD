@@ -1,50 +1,90 @@
 package com.hospital.opd.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
 
+import java.time.Instant;
+import java.time.LocalDate;
+
+/** A person known to the hospital. One patient has many visits. */
 @Entity
 @Table(name = "patients")
 public class Patient {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true, length = 20)
+    private String mrn;
+
+    @Column(nullable = false, length = 150)
+    private String fullName;
+
     @Column(nullable = false)
-    private String name;
+    private LocalDate dateOfBirth;
 
-    private int age;
-    private String gender;
-    private String contactNumber;
-    private String chiefComplaint;
-    private String status; // QUEUED, IN_CONSULTATION, DISCHARGED, REFERRED_TO_LAB
+    @Column(nullable = false)
+    private boolean dobEstimated;
 
-    private LocalDateTime registrationTime;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private Gender gender;
 
-    public Patient() {}
-    public Patient(String name, int age, String gender, String contactNumber, String chiefComplaint) {
-        this.name = name;
-        this.age = age;
-        this.gender = gender;
-        this.contactNumber = contactNumber;
-        this.chiefComplaint = chiefComplaint;
-        this.status = "QUEUED";
-        this.registrationTime = LocalDateTime.now();
-    }
+    @Column(nullable = false, length = 20)
+    private String phone;
 
-    // Getters and Setters
+    private String address;
+
+    @Column(length = 5)
+    private String bloodGroup;
+
+    private String allergies;
+
+    @Column(length = 150)
+    private String emergencyContactName;
+
+    @Column(length = 20)
+    private String emergencyContactPhone;
+
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(nullable = false, updatable = false, length = 50)
+    private String createdBy;
+
+    private Instant updatedAt;
+
+    @Version
+    private long version;
+
     public Long getId() { return id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public int getAge() { return age; }
-    public void setAge(int age) { this.age = age; }
-    public String getGender() { return gender; }
-    public void setGender(String gender) { this.gender = gender; }
-    public String getContactNumber() { return contactNumber; }
-    public void setContactNumber(String contactNumber) { this.contactNumber = contactNumber; }
-    public String getChiefComplaint() { return chiefComplaint; }
-    public void setChiefComplaint(String chiefComplaint) { this.chiefComplaint = chiefComplaint; }
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-    public LocalDateTime getRegistrationTime() { return registrationTime; }
+    public String getMrn() { return mrn; }
+    public void setMrn(String mrn) { this.mrn = mrn; }
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    public boolean isDobEstimated() { return dobEstimated; }
+    public void setDobEstimated(boolean dobEstimated) { this.dobEstimated = dobEstimated; }
+    public Gender getGender() { return gender; }
+    public void setGender(Gender gender) { this.gender = gender; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    public String getBloodGroup() { return bloodGroup; }
+    public void setBloodGroup(String bloodGroup) { this.bloodGroup = bloodGroup; }
+    public String getAllergies() { return allergies; }
+    public void setAllergies(String allergies) { this.allergies = allergies; }
+    public String getEmergencyContactName() { return emergencyContactName; }
+    public void setEmergencyContactName(String emergencyContactName) { this.emergencyContactName = emergencyContactName; }
+    public String getEmergencyContactPhone() { return emergencyContactPhone; }
+    public void setEmergencyContactPhone(String emergencyContactPhone) { this.emergencyContactPhone = emergencyContactPhone; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public String getCreatedBy() { return createdBy; }
+    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+    public Instant getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public long getVersion() { return version; }
 }

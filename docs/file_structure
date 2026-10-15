@@ -1,0 +1,233 @@
+JBikas-OPD/
+├── auth-service/
+│   ├── src/main/
+│   │   ├── java/com/hospital/auth/
+│   │   │   ├── config/
+│   │   │   │   ├── DataInitializer.java                       [UPDATED]
+│   │   │   │   └── SecurityConfig.java                        [UPDATED]
+│   │   │   ├── controller/
+│   │   │   │   └── AuthController.java                        [UPDATED]
+│   │   │   ├── dto/
+│   │   │   │   ├── LoginRequest.java                          [NEW]
+│   │   │   │   ├── LoginResponse.java                         [NEW]
+│   │   │   │   ├── RegisterRequest.java                       [NEW]
+│   │   │   │   └── UserResponse.java                          [NEW]
+│   │   │   ├── exception/
+│   │   │   │   ├── ApiError.java                              [NEW]
+│   │   │   │   ├── BusinessRuleException.java                 [NEW]
+│   │   │   │   └── GlobalExceptionHandler.java                [NEW]
+│   │   │   ├── jwt/
+│   │   │   │   ├── AuthTokenFilter.java                       [NEW]
+│   │   │   │   └── JwtUtils.java                              [UPDATED]
+│   │   │   └── model/
+│   │   │       └── Role.java                                  [UPDATED]
+│   │   └── resources/
+│   │       └── application.yml                                [UPDATED]
+│   └── pom.xml                                                [UPDATED]
+│
+├── opd-service/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/com/hospital/opd/
+│   │   │   │   ├── client/
+│   │   │   │   │   ├── LabClient.java                         [NEW]
+│   │   │   │   │   ├── LabOrderCreated.java                   [NEW]
+│   │   │   │   │   └── LabOrderPayload.java                   [NEW]
+│   │   │   │   ├── config/
+│   │   │   │   │   ├── AppConfig.java                         [NEW]
+│   │   │   │   │   ├── AuthTokenFilter.java                   [DELETE] → moved to security/
+│   │   │   │   │   ├── JwtUtils.java                          [DELETE] → moved to security/
+│   │   │   │   │   └── SecurityConfig.java                    [UPDATED]
+│   │   │   │   ├── controller/
+│   │   │   │   │   ├── PatientController.java                 [UPDATED]
+│   │   │   │   │   └── VisitController.java                   [NEW]
+│   │   │   │   ├── dto/
+│   │   │   │   │   ├── CancelRequest.java                     [NEW]
+│   │   │   │   │   ├── ConsultationNotesRequest.java          [NEW]
+│   │   │   │   │   ├── LabOrderRequest.java                   [NEW]
+│   │   │   │   │   ├── LabResultsReadyRequest.java            [NEW]
+│   │   │   │   │   ├── PatientBrief.java                      [NEW]
+│   │   │   │   │   ├── PatientRequest.java                    [NEW]
+│   │   │   │   │   ├── PatientResponse.java                   [NEW]
+│   │   │   │   │   ├── TriageRequest.java                     [NEW]
+│   │   │   │   │   ├── VisitCreateRequest.java                [NEW]
+│   │   │   │   │   ├── VisitDetailResponse.java               [NEW]
+│   │   │   │   │   ├── VisitEventResponse.java                [NEW]
+│   │   │   │   │   ├── VisitSummaryResponse.java              [NEW]
+│   │   │   │   │   └── VitalsResponse.java                    [NEW]
+│   │   │   │   ├── exception/
+│   │   │   │   │   ├── ApiError.java                          [NEW]
+│   │   │   │   │   ├── BusinessRuleException.java             [NEW]
+│   │   │   │   │   ├── DownstreamServiceException.java        [NEW]
+│   │   │   │   │   ├── GlobalExceptionHandler.java            [NEW]
+│   │   │   │   │   └── NotFoundException.java                 [NEW]
+│   │   │   │   ├── model/
+│   │   │   │   │   ├── Gender.java                            [NEW]
+│   │   │   │   │   ├── Patient.java                           [UPDATED]
+│   │   │   │   │   ├── TriagePriority.java                    [NEW]
+│   │   │   │   │   ├── Visit.java                             [NEW]
+│   │   │   │   │   ├── VisitEvent.java                        [NEW]
+│   │   │   │   │   ├── VisitStatus.java                       [NEW]
+│   │   │   │   │   ├── VitalFlag.java                         [NEW]
+│   │   │   │   │   └── VitalSigns.java                        [NEW]
+│   │   │   │   ├── repository/
+│   │   │   │   │   ├── PatientRepository.java                 [UPDATED]
+│   │   │   │   │   ├── VisitEventRepository.java              [NEW]
+│   │   │   │   │   ├── VisitRepository.java                   [NEW]
+│   │   │   │   │   └── VitalSignsRepository.java              [NEW]
+│   │   │   │   ├── security/
+│   │   │   │   │   ├── AuthTokenFilter.java                   [NEW]
+│   │   │   │   │   ├── CurrentUser.java                       [NEW]
+│   │   │   │   │   ├── JwtUtils.java                          [NEW]
+│   │   │   │   │   └── StaffPrincipal.java                    [NEW]
+│   │   │   │   └── service/
+│   │   │   │       ├── AgeCalculator.java                     [NEW]
+│   │   │   │       ├── OpdMapper.java                         [NEW]
+│   │   │   │       ├── PatientService.java                    [NEW]
+│   │   │   │       ├── SequenceService.java                   [NEW]
+│   │   │   │       ├── VisitService.java                      [NEW]
+│   │   │   │       └── VitalsAssessor.java                    [NEW]
+│   │   │   └── resources/
+│   │   │       ├── db/migration/
+│   │   │       │   └── V1__opd_initial_schema.sql             [NEW]
+│   │   │       └── application.yml                            [UPDATED]
+│   │   └── test/java/com/hospital/opd/
+│   │       ├── model/VisitStatusTest.java                     [NEW]
+│   │       └── service/
+│   │           ├── AgeCalculatorTest.java                     [NEW]
+│   │           └── VitalsAssessorTest.java                    [NEW]
+│   └── pom.xml                                                [UPDATED]
+│
+├── lab-service/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/com/hospital/lab/
+│   │   │   │   ├── client/
+│   │   │   │   │   └── OpdClient.java                         [NEW]
+│   │   │   │   ├── config/
+│   │   │   │   │   ├── AppConfig.java                         [NEW]
+│   │   │   │   │   ├── AuthTokenFilter.java                   [DELETE] → moved to security/
+│   │   │   │   │   ├── JwtUtils.java                          [DELETE] → moved to security/
+│   │   │   │   │   └── SecurityConfig.java                    [UPDATED]
+│   │   │   │   ├── controller/
+│   │   │   │   │   ├── CatalogController.java                 [NEW]
+│   │   │   │   │   └── LabOrderController.java                [UPDATED]
+│   │   │   │   ├── dto/
+│   │   │   │   │   ├── AmendRequest.java                      [NEW]
+│   │   │   │   │   ├── AttachmentResponse.java                [NEW]
+│   │   │   │   │   ├── CancelRequest.java                     [NEW]
+│   │   │   │   │   ├── CatalogParameterResponse.java          [NEW]
+│   │   │   │   │   ├── CatalogTestResponse.java               [NEW]
+│   │   │   │   │   ├── CreateLabOrderRequest.java             [NEW]
+│   │   │   │   │   ├── LabItemResponse.java                   [NEW]
+│   │   │   │   │   ├── LabOrderResponse.java                  [NEW]
+│   │   │   │   │   ├── LabOrderSummary.java                   [NEW]
+│   │   │   │   │   ├── LabResultResponse.java                 [NEW]
+│   │   │   │   │   ├── ReleaseRequest.java                    [NEW]
+│   │   │   │   │   └── ResultEntryRequest.java                [NEW]
+│   │   │   │   ├── exception/
+│   │   │   │   │   ├── ApiError.java                          [NEW]
+│   │   │   │   │   ├── BusinessRuleException.java             [NEW]
+│   │   │   │   │   ├── DownstreamServiceException.java        [NEW]
+│   │   │   │   │   ├── GlobalExceptionHandler.java            [NEW]
+│   │   │   │   │   └── NotFoundException.java                 [NEW]
+│   │   │   │   ├── model/
+│   │   │   │   │   ├── LabAttachment.java                     [NEW]
+│   │   │   │   │   ├── LabOrder.java                          [UPDATED]
+│   │   │   │   │   ├── LabOrderItem.java                      [NEW]
+│   │   │   │   │   ├── LabOrderStatus.java                    [NEW]
+│   │   │   │   │   ├── LabResult.java                         [NEW]
+│   │   │   │   │   ├── OrderPriority.java                     [NEW]
+│   │   │   │   │   ├── ReferenceRange.java                    [NEW]
+│   │   │   │   │   ├── ResultAmendment.java                   [NEW]
+│   │   │   │   │   ├── ResultFlag.java                        [NEW]
+│   │   │   │   │   ├── TestDefinition.java                    [NEW]
+│   │   │   │   │   ├── TestParameter.java                     [NEW]
+│   │   │   │   │   └── ValueType.java                         [NEW]
+│   │   │   │   ├── repository/
+│   │   │   │   │   ├── LabAttachmentRepository.java           [NEW]
+│   │   │   │   │   ├── LabOrderRepository.java                [UPDATED]
+│   │   │   │   │   ├── ResultAmendmentRepository.java         [NEW]
+│   │   │   │   │   └── TestDefinitionRepository.java          [NEW]
+│   │   │   │   ├── security/
+│   │   │   │   │   ├── AuthTokenFilter.java                   [NEW]
+│   │   │   │   │   ├── CurrentUser.java                       [NEW]
+│   │   │   │   │   ├── JwtUtils.java                          [NEW]
+│   │   │   │   │   └── StaffPrincipal.java                    [NEW]
+│   │   │   │   └── service/
+│   │   │   │       ├── AttachmentService.java                 [NEW]
+│   │   │   │       ├── AttachmentStorage.java                 [NEW]
+│   │   │   │       ├── CatalogService.java                    [NEW]
+│   │   │   │       ├── LabMapper.java                         [NEW]
+│   │   │   │       ├── LabOrderService.java                   [NEW]
+│   │   │   │       ├── OrderNumberService.java                [NEW]
+│   │   │   │       ├── ReferenceRangeResolver.java            [NEW]
+│   │   │   │       ├── ReportService.java                     [NEW]
+│   │   │   │       ├── ResolvedRange.java                     [NEW]
+│   │   │   │       └── ResultFlagEvaluator.java               [NEW]
+│   │   │   └── resources/
+│   │   │       ├── db/migration/
+│   │   │       │   ├── V1__lab_initial_schema.sql             [NEW]
+│   │   │       │   └── V2__seed_test_catalog.sql              [NEW]
+│   │   │       └── application.yml                            [UPDATED]
+│   │   └── test/java/com/hospital/lab/service/
+│   │       ├── AttachmentSniffTest.java                       [NEW]
+│   │       ├── LabResultEntryTest.java                        [NEW]
+│   │       ├── ReferenceRangeResolverTest.java                [NEW]
+│   │       └── ResultFlagEvaluatorTest.java                   [NEW]
+│   └── pom.xml                                                [UPDATED]
+│
+├── frontend-ui/
+│   ├── src/
+│   │   ├── api/
+│   │   │   ├── axiosClient.js                                 [UPDATED]
+│   │   │   ├── errors.js                                      [NEW]
+│   │   │   ├── labApi.js                                      [NEW]
+│   │   │   ├── opdApi.js                                      [NEW]
+│   │   │   └── patientApi.js                                  [DELETE] → replaced by opdApi.js
+│   │   ├── components/
+│   │   │   ├── clinical/index.jsx                             [NEW]
+│   │   │   ├── layout/AppShell.jsx                            [UPDATED]
+│   │   │   └── ui/
+│   │   │       ├── Icon.jsx                                   [UPDATED]
+│   │   │       └── index.jsx                                  [UPDATED]
+│   │   ├── context/AuthContext.jsx                            [UPDATED]
+│   │   ├── domain/clinical.js                                 [NEW]
+│   │   ├── hooks/
+│   │   │   ├── useAction.js                                   [NEW]
+│   │   │   ├── useAsync.js                                    [NEW]
+│   │   │   ├── useInterval.js                                 [NEW]
+│   │   │   └── useRevealOnNarrow.js                           [NEW]
+│   │   ├── modules/
+│   │   │   ├── auth/Login.jsx                                 [UPDATED]
+│   │   │   ├── lab/
+│   │   │   │   ├── AttachmentsPanel.jsx                       [NEW]
+│   │   │   │   ├── LabDashboard.jsx                           [NEW]
+│   │   │   │   ├── OrderWorkspace.jsx                         [NEW]
+│   │   │   │   └── ResultEntryForm.jsx                        [NEW]
+│   │   │   └── opd/
+│   │   │       ├── doctor/
+│   │   │       │   ├── ConsultationWorkspace.jsx              [NEW]
+│   │   │       │   ├── LabOrderCard.jsx                       [NEW]
+│   │   │       │   └── LabOrderForm.jsx                       [NEW]
+│   │   │       ├── nurse/
+│   │   │       │   ├── PatientForm.jsx                        [NEW]
+│   │   │       │   ├── RegisterVisit.jsx                      [NEW]
+│   │   │       │   ├── TodayVisits.jsx                        [NEW]
+│   │   │       │   └── TriagePanel.jsx                        [NEW]
+│   │   │       ├── DoctorDashboard.jsx                        [UPDATED]
+│   │   │       ├── NurseDashboard.jsx                         [UPDATED]
+│   │   │       ├── patientFormat.js                           [DELETE] → replaced by domain/clinical.js
+│   │   │       └── usePatientList.js                          [DELETE] → replaced by hooks/useAsync.js
+│   │   ├── styles/global.css                                  [UPDATED]
+│   │   └── App.jsx                                            [UPDATED]
+│   ├── .dockerignore                                          [NEW]
+│   ├── .env.example                                           [NEW]
+│   ├── Dockerfile                                             [UPDATED]
+│   ├── nginx.conf                                             [NEW]
+│   └── README.md                                              [UPDATED]
+│
+├── docs/HOSPITAL_WORKFLOWS.md                                 [NEW]
+├── tools/gen_lab_catalog.py                                   [NEW]
+├── docker-compose.yml                                         [UPDATED]
+└── Testing.md                                                 [UPDATED]

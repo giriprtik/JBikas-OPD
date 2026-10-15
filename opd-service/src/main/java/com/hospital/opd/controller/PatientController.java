@@ -1,101 +1,57 @@
 package com.hospital.opd.controller;
 
-import com.hospital.opd.model.Patient;
-import com.hospital.opd.repository.PatientRepository;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.http.*;
+import com.hospital.opd.dto.PatientRequest;
+import com.hospital.opd.dto.PatientResponse;
+import com.hospital.opd.dto.VisitSummaryResponse;
+import com.hospital.opd.service.PatientService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-import java.util.HashMap;
+
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/opd/patients")
 public class PatientController {
 
-    private final PatientRepository patientRepository;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final PatientService patientService;
 
-    public PatientController(PatientRepository patientRepository) {
-        this.patientRepository = patientRepository;
+    public PatientController(PatientService patientService) {
+        this.patientService = patientService;
     }
 
-    // 🩺 View all active waiting queue patients
-    @GetMapping("/queue")
-    @PreAuthorize("hasRole('DOCTOR') or hasRole('NURSE')")
-    public ResponseEntity<List<Patient>> getActiveQueue() {
-        return ResponseEntity.ok(patientRepository.findByStatus("QUEUED"));
-    }
-
-    // 📋 View a master history list of all patients
-    @GetMapping("/all")
-    @PreAuthorize("hasRole('DOCTOR') or hasRole('NURSE')")
-    public ResponseEntity<List<Patient>> getAllRegisteredPatients() {
-        return ResponseEntity.ok(patientRepository.findAll());
-    }
-
-    // 📝 ONLY Nurses are authorized to register incoming clinic patients
-    @PostMapping("/register")
+    /** Front desk registration of a new patient (no visit is opened yet). */
+    @PostMapping
     @PreAuthorize("hasRole('NURSE')")
-    public ResponseEntity<Patient> registerPatient(@RequestBody Patient patient) {
-        Patient savedPatient = patientRepository.save(new Patient(
-            patient.getName(),
-            patient.getAge(),
-            patient.getGender(),
-            patient.getContactNumber(),
-            patient.getChiefComplaint()
-        ));
-        return ResponseEntity.ok(savedPatient);
+    public ResponseEntity<PatientResponse> register(@Valid @RequestBody PatientRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(patientService.register(request));
     }
 
-    // 🚀 CROSS-SERVICE COMMUNICATION: Doctor orders a lab test for a patient
-    @PutMapping("/{id}/order-lab")
-    @PreAuthorize("hasRole('DOCTOR')")
-    public ResponseEntity<?> orderLaboratoryTest(
-            @PathVariable Long id, 
-            @RequestParam String testType,
-            HttpServletRequest request) {
-        
-        // 1. Fetch the patient from the local OPD database
-        Patient patient = patientRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Patient Not Found: " + id));
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('NURSE')")
+    public PatientResponse update(@PathVariable Long id, @Valid @RequestBody PatientRequest request) {
+        return patientService.update(id, request);
+    }
 
-        // 2. Intercept the active user's incoming Bearer Token
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing active auth token.");
-        }
+    /** ?q= MRN (JB-000123), phone digits, or part of the name. */
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('NURSE', 'DOCTOR')")
+    public List<PatientResponse> search(@RequestParam("q") String query) {
+        return patientService.search(query);
+    }
 
-        // 3. Update local patient record status to show they are waiting on laboratory results
-        patient.setStatus("REFERRED_TO_LAB");
-        patientRepository.save(patient);
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('NURSE', 'DOCTOR')")
+    public PatientResponse get(@PathVariable Long id) {
+        return patientService.get(id);
+    }
 
-        // 4. Wrap the lab payload parameters into a network data packet map
-        Map<String, Object> labOrderRequest = new HashMap<>();
-        labOrderRequest.put("patientId", patient.getId());
-        labOrderRequest.put("patientName", patient.getName());
-        labOrderRequest.put("testType", testType);
-
-        // 5. Append the active authorization context headers to the background network stream
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", authHeader);
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(labOrderRequest, headers);
-
-        try {
-            // 6. Push the network call over to the internal lab-service cluster container
-            String labServiceUrl = "http://lab-service:8083/api/lab/orders/create";
-            ResponseEntity<String> response = restTemplate.postForEntity(labServiceUrl, entity, String.class);
-            
-            return ResponseEntity.ok("Lab order triggered successfully via microservice bridge! Response: " + response.getBody());
-        } catch (Exception e) {
-            // Rollback status to queued if the lab microservice falls offline
-            patient.setStatus("QUEUED");
-            patientRepository.save(patient);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Microservice communication failure: " + e.getMessage());
-        }
+    /** Previous visits, newest first. */
+    @GetMapping("/{id}/visits")
+    @PreAuthorize("hasAnyRole('NURSE', 'DOCTOR')")
+    public List<VisitSummaryResponse> history(@PathVariable Long id) {
+        return patientService.history(id);
     }
 }

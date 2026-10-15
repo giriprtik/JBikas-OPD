@@ -1,37 +1,46 @@
 services:
-  # 🗄️ Relational Database Module
+  # Relational database (one Postgres, one database per service: jbikas_auth, jbikas_opd, jbikas_lab)
   postgres-db:
     image: postgres:15-alpine
     container_name: jbikas-postgres
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: postgres
+      TZ: UTC
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     networks:
       - jbikas-network
 
-  # 📊 Relational Database Visual Viewer Panel
+  # Database browser for development
   postgres-ui:
     image: sosedoff/pgweb:latest
     container_name: jbikas-postgres-ui
     ports:
       - "8085:8081"
     environment:
-      - PGWEB_DATABASE_URL=postgres://postgres:password@postgres-db:5432/jbikas_auth?sslmode=disable
+      - PGWEB_DATABASE_URL=postgres://postgres:password@postgres-db:5432/jbikas_opd?sslmode=disable
     depends_on:
-      - postgres-db
+      postgres-db:
+        condition: service_healthy
     networks:
       - jbikas-network
 
-  # 🔑 Authentication & Identity Microservice
+  # Authentication & identity
   auth-service:
     build: ./auth-service
     container_name: jbikas-auth-service
+    restart: unless-stopped
     ports:
       - "8081:8081"
     environment:
@@ -39,32 +48,40 @@ services:
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=password
       - JWT_SECRET=9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
-      - JWT_EXPIRATION=86400000
+      - JWT_EXPIRATION=43200000
+      - APP_SEED_DEFAULT_USERS=true
     depends_on:
-      - postgres-db
+      postgres-db:
+        condition: service_healthy
     networks:
       - jbikas-network
 
-  # 🩺 Out-Patient Department Microservice
+  # Out-patient department: patients, visits, triage, consultation
   opd-service:
     build: ./opd-service
     container_name: jbikas-opd-service
+    restart: unless-stopped
     ports:
       - "8082:8082"
+          
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/jbikas_opd
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=password
       - JWT_SECRET=9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
+      - LAB_SERVICE_URL=http://lab-service:8083
+      - APP_TIMEZONE=Asia/Kathmandu
     depends_on:
-      - postgres-db
+      postgres-db:
+        condition: service_healthy
     networks:
       - jbikas-network
 
-  # 🧪 Laboratory Diagnostics Microservice
+  # Laboratory: catalog, orders, results, attachments, PDF reports
   lab-service:
     build: ./lab-service
     container_name: jbikas-lab-service
+    restart: unless-stopped
     ports:
       - "8083:8083"
     environment:
@@ -72,15 +89,25 @@ services:
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=password
       - JWT_SECRET=9a4f2c8d3e7b1a5f6c8d9e0a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u
+      - OPD_SERVICE_URL=http://opd-service:8082
+      - APP_TIMEZONE=Asia/Kathmandu
+      - LAB_ATTACHMENTS_DIR=/data/lab-attachments
+      - LAB_REPORT_HOSPITAL_NAME=JBikas Hospital
+      - LAB_REPORT_HOSPITAL_ADDRESS=Department of Laboratory Medicine
+    volumes:
+      # Uploaded files live here. Back it up together with the database.
+      - lab-attachments:/data/lab-attachments
     depends_on:
-      - postgres-db
+      postgres-db:
+        condition: service_healthy
     networks:
       - jbikas-network
 
-  # 💻 User Web Dashboard Application Layer
+  # Web UI (static build served by nginx)
   frontend-ui:
     build: ./frontend-ui
     container_name: jbikas-frontend
+    restart: unless-stopped
     ports:
       - "5173:80"
     networks:
@@ -88,6 +115,7 @@ services:
 
 volumes:
   pgdata:
+  lab-attachments:
 
 networks:
   jbikas-network:

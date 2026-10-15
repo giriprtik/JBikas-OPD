@@ -13,7 +13,9 @@ const TABS = {
   progress: { label: 'In progress', statuses: ['SAMPLE_COLLECTED', 'IN_PROGRESS'] },
   done: { label: 'Released (24 h)', statuses: ['RELEASED', 'CANCELLED'] },
 };
-const REFRESH_MS = 30_000;
+
+// CHANGED: Reduced polling cycle timeline from 30s to 3 seconds for instant real-time synchronization
+const REFRESH_MS = 3000;
 
 export default function LabDashboard() {
   const [tab, setTab] = useState('collect');
@@ -23,6 +25,13 @@ export default function LabDashboard() {
 
   const refresh = (opts) => { open.reload(opts); done.reload(opts); };
   useInterval(() => refresh({ silent: true }), REFRESH_MS);
+
+  // CHANGED: Added an explicit state reset handler to run immediately when an order updates
+  const handleOrderChanged = () => {
+    refresh({ silent: true });
+    // If we are working inside an order and it gets released, deselect it so the panels stay in sync
+    setSelectedId(null);
+  };
 
   const rows = tab === 'done' ? done.data : open.data.filter((o) => TABS[tab].statuses.includes(o.status));
   const counts = {
@@ -76,7 +85,8 @@ export default function LabDashboard() {
         </Card>
 
         {selectedId ? (
-          <OrderWorkspace key={selectedId} orderId={selectedId} onChanged={() => refresh({ silent: true })} />
+          // CHANGED: Bound our reactive clear function to the Workspace client state trigger
+          <OrderWorkspace key={selectedId} orderId={selectedId} onChanged={handleOrderChanged} />
         ) : (
           <Card title="No order open">
             <EmptyState icon="flask" title="Select an order">Collect the sample, enter results and release the report.</EmptyState>

@@ -1,17 +1,29 @@
 package com.hospital.auth.controller;
 
+import com.hospital.auth.dto.LoginRequest;
+import com.hospital.auth.dto.LoginResponse;
+import com.hospital.auth.dto.RegisterRequest;
+import com.hospital.auth.dto.UserResponse;
+import com.hospital.auth.exception.BusinessRuleException;
 import com.hospital.auth.jwt.JwtUtils;
-import com.hospital.auth.model.*;
+import com.hospital.auth.model.Role;
+import com.hospital.auth.model.User;
 import com.hospital.auth.repository.UserRepository;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -22,64 +34,47 @@ public class AuthController {
     private final PasswordEncoder encoder;
     private final JwtUtils jwtUtils;
 
-    public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository, PasswordEncoder encoder, JwtUtils jwtUtils) {
+    public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
+                          PasswordEncoder encoder, JwtUtils jwtUtils) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.encoder = encoder;
         this.jwtUtils = jwtUtils;
     }
 
+    /** Public. Bad credentials surface as 401 through GlobalExceptionHandler. */
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@RequestBody Map<String, String> loginRequest) {
+    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.get("username"), loginRequest.get("password")));
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        String jwt = jwtUtils.generateJwtToken(userDetails);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("token", jwt);
-        response.put("username", userDetails.getUsername());
-        return ResponseEntity.ok(response);
+                new UsernamePasswordAuthenticationToken(request.username(), request.password()));
+        UserDetails principal = (UserDetails) authentication.getPrincipal();
+        String fullName = userRepository.findByUsername(principal.getUsername())
+                .map(User::getFullName)
+                .orElse(principal.getUsername());
+        List<String> roles = principal.getAuthorities().stream().map(GrantedAuthority::getAuthority).sorted().toList();
+        return new LoginResponse(jwtUtils.generateJwtToken(principal, fullName), principal.getUsername(), fullName, roles);
     }
 
+    /** Staff accounts are created by an administrator only; there is no self sign-up in a hospital system. */
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody Map<String, String> signUpRequest) {
-        if (userRepository.existsByUsername(signUpRequest.get("username"))) {
-            return ResponseEntity.badRequest().body("Error: Username is already taken!");
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
+        if (userRepository.existsByUsername(request.username())) {
+            throw new BusinessRuleException("Username '" + request.username() + "' is already taken.");
         }
-
-        Role userRole = Role.valueOf("ROLE_" + signUpRequest.get("role").toUpperCase());
-        Set<Role> roles = new HashSet<>();
-        roles.add(userRole);
-
-        User user = new User(
-                signUpRequest.get("username"),
-                encoder.encode(signUpRequest.get("password")),
-                signUpRequest.get("fullName"),
-                roles
-        );
-
-        userRepository.save(user);
-        return ResponseEntity.ok("User registered successfully!");
+        Role role;
+        try {
+            role = Role.fromName(request.role());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unknown role '" + request.role() + "'. Use DOCTOR, NURSE, LAB_TECH or ADMIN.");
+        }
+        User user = new User(request.username(), encoder.encode(request.password()), request.fullName().trim(), new HashSet<>(Set.of(role)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(UserResponse.from(userRepository.save(user)));
     }
 
     @GetMapping("/users")
-    public ResponseEntity<List<Map<String, Object>>> getAllUsers() {
-        List<com.hospital.auth.model.User> users = userRepository.findAll();
-        List<Map<String, Object>> response = new ArrayList<>();
-        
-        for (com.hospital.auth.model.User user : users) {
-            Map<String, Object> userMap = new HashMap<>();
-            userMap.put("id", user.getId());
-            userMap.put("username", user.getUsername());
-            userMap.put("fullName", user.getFullName());
-            userMap.put("roles", user.getRoles());
-            response.add(userMap);
-        }
-        
-        return ResponseEntity.ok(response);
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<UserResponse> listUsers() {
+        return userRepository.findAll().stream().map(UserResponse::from).toList();
     }
-
 }

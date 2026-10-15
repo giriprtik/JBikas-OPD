@@ -13,7 +13,8 @@ Purpose: Inspects every incoming HTTP request header for Authorization: Bearer <
 📂 Path: opd-service/src/main/java/com/hospital/opd/config/SecurityConfig.java
 Purpose: Locks down all operational medical endpoints, routing them directly through the AuthTokenFilter. Adding @EnableMethodSecurity allows us to securely restrict specific controllers later—ensuring Nurses can register patients but only Doctors can update treatment notes.
 
-
+📂 opd-service/src/main/java/com/hospital/opd/config/FeignClientConfig.java
+Purpose: Feign Request Interceptor inside the opd-service module automatically grabs the active request's JWT token and injects it into all downstream calls to the lab-service.
 
 Patient Workflow:
 Here is how the patient moves across the three modules:
